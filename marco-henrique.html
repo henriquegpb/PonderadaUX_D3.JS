@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mapa Operacional de Focos — Suzano</title>
+  <style>
+    :root {
+      --bg: #07111b;
+      --panel: #0d1b2a;
+      --panel-2: #102233;
+      --line: #1f3b53;
+      --text: #eaf4ff;
+      --muted: #9fb6cc;
+      --success: #2ecc71;
+      --danger: #ff5c5c;
+      --warning: #ffb703;
+      --critical: #ff3b30;
+      --high: #ff8c42;
+      --medium: #ffd166;
+      --low: #4cc9f0;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #0d2033 0%, var(--bg) 48%);
+      color: var(--text);
+    }
+
+    .app {
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .title-block h1 {
+      margin: 0 0 6px;
+      font-size: 28px;
+      line-height: 1.1;
+    }
+
+    .title-block p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 860px;
+      line-height: 1.45;
+    }
+
+    .badge {
+      background: rgba(255,255,255,0.06);
+      color: #d9ebff;
+      border: 1px solid rgba(255,255,255,0.12);
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .filter-btn {
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: 180ms ease;
+      font-weight: 600;
+    }
+
+    .filter-btn:hover,
+    .filter-btn.active {
+      background: rgba(76, 201, 240, 0.12);
+      border-color: rgba(76, 201, 240, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .layout {
+      display: block;
+    }
+
+    .panel {
+      background: linear-gradient(180deg, rgba(16,34,51,0.96), rgba(9,22,34,0.96));
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 22px;
+      overflow: hidden;
+      box-shadow: 0 22px 50px rgba(0, 0, 0, 0.35);
+    }
+
+    .map-panel {
+      position: relative;
+      min-height: 760px;
+    }
+
+    .map-caption {
+      position: absolute;
+      left: 18px;
+      top: 18px;
+      z-index: 2;
+      background: rgba(5, 11, 18, 0.7);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 12px 14px;
+      border-radius: 16px;
+      max-width: 360px;
+    }
+
+    .map-caption strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+    }
+
+    .map-caption span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 760px;
+      background:
+        radial-gradient(circle at 50% 35%, rgba(53, 94, 150, 0.18), transparent 38%),
+        linear-gradient(180deg, #0b1a29 0%, #08121b 100%);
+    }
+
+    .side-panel {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .side-panel h2 {
+      font-size: 18px;
+      margin: 0;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .kpi {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .kpi .label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .kpi .value {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .legend {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #d7e7f6;
+      font-size: 13px;
+    }
+
+    .legend-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      flex-shrink: 0;
+    }
+
+    .legend-line {
+      width: 28px;
+      height: 0;
+      border-top: 3px solid white;
+      flex-shrink: 0;
+    }
+
+    .focus-list {
+      display: grid;
+      gap: 10px;
+      max-height: 420px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .focus-card {
+      border-radius: 18px;
+      padding: 14px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+    }
+
+    .focus-card.pending {
+      border-color: rgba(255, 92, 92, 0.35);
+      background: rgba(255, 92, 92, 0.06);
+    }
+
+    .focus-card.served {
+      border-color: rgba(46, 204, 113, 0.24);
+    }
+
+    .focus-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 6px;
+    }
+
+    .focus-card strong {
+      font-size: 14px;
+      line-height: 1.3;
+    }
+
+    .chip {
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+
+    .chip.status-served { background: rgba(46,204,113,0.16); color: #aaf0c8; }
+    .chip.status-pending { background: rgba(255,92,92,0.14); color: #ffc2c2; }
+    .chip.critica { background: rgba(255,59,48,0.18); color: #ffbeb8; }
+    .chip.alta { background: rgba(255,140,66,0.18); color: #ffd1b0; }
+    .chip.media { background: rgba(255,209,102,0.16); color: #ffe8a6; }
+    .chip.baixa { background: rgba(76,201,240,0.16); color: #b8ecff; }
+
+    .focus-meta {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .tooltip {
+      position: fixed;
+      pointer-events: none;
+      z-index: 10;
+      background: rgba(3, 10, 16, 0.95);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: white;
+      padding: 12px 14px;
+      border-radius: 14px;
+      min-width: 220px;
+      box-shadow: 0 14px 36px rgba(0,0,0,0.35);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: 120ms ease;
+    }
+
+    .tooltip strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+    }
+
+    .tooltip div {
+      font-size: 12px;
+      color: #d3e5f5;
+      line-height: 1.5;
+    }
+
+    .map-note {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .error-box {
+      display: grid;
+      place-items: center;
+      height: 100%;
+      padding: 40px;
+      color: #ffd4d4;
+      text-align: center;
+    }
+
+    .state {
+      stroke: rgba(222, 240, 255, 0.28);
+      stroke-width: 1;
+    }
+
+    .route {
+      fill: none;
+      stroke-linecap: round;
+      opacity: 0.92;
+    }
+
+    .base-label {
+      font-size: 11px;
+      font-weight: 700;
+      fill: #dcefff;
+      paint-order: stroke;
+      stroke: rgba(7, 17, 27, 0.9);
+      stroke-width: 3px;
+      stroke-linejoin: round;
+    }
+
+    .focus-label {
+      font-size: 10px;
+      font-weight: 800;
+      fill: #ffffff;
+      text-anchor: middle;
+      paint-order: stroke;
+      stroke: rgba(0,0,0,0.8);
+      stroke-width: 3px;
+      stroke-linejoin: round;
+      pointer-events: none;
+    }
+
+    @media (max-width: 1180px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      .map-panel { min-height: 680px; }
+      svg { height: 680px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div class="title-block">
+        <h1>Mapa geográfico com rotas e camadas de risco</h1>
+        <p>
+          Visualização em D3.js para mostrar quais focos estão sendo atendidos e quais permanecem pendentes,
+          priorizando ocorrências críticas e altas. O mapa usa rotas entre base e foco, círculos de risco e
+          coloração do estado para indicar concentração operacional.
+        </p>
+      </div>
+      <div class="badge">Demo D3.js • desktop-first • pronto para adaptar ao algoritmo</div>
+    </div>
+
+    <div class="toolbar" id="filters">
+      <button class="filter-btn active" data-priority="all">Todas as prioridades</button>
+      <button class="filter-btn" data-priority="Crítica">Somente crítica</button>
+      <button class="filter-btn" data-priority="Alta">Somente alta</button>
+      <button class="filter-btn" data-priority="Média">Somente média</button>
+      <button class="filter-btn" data-priority="Baixa">Somente baixa</button>
+    </div>
+
+    <div class="layout">
+      <div class="panel map-panel">
+        <div class="map-caption">
+          <strong>Como ler o mapa</strong>
+          <span>
+            Verde = foco atendido. Vermelho = foco pendente. O halo indica o nível de risco local e o preenchimento
+            dos estados resume a pressão operacional agregada. Rotas aparecem apenas para focos já alocados a uma base.
+          </span>
+        </div>
+        <svg id="chart" aria-label="Mapa operacional de focos de incêndio"></svg>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tooltip" id="tooltip"></div>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>
+    const brazilGeoJsonUrl = "https://raw.githubusercontent.com/giuliano-macedo/geodata-br-states/main/geojson/br_states.json";
+
+    const bases = [
+      {
+        id: "SP",
+        nome: "Base SP - Limeira",
+        uf: "SP",
+        coords: [-47.4017, -22.5647],
+        caminhoes: 4,
+        aeronaves: 1,
+        equipes: 3
+      },
+      {
+        id: "MS",
+        nome: "Base MS - Três Lagoas",
+        uf: "MS",
+        coords: [-51.7007, -20.7900],
+        caminhoes: 5,
+        aeronaves: 2,
+        equipes: 4
+      },
+      {
+        id: "MA",
+        nome: "Base MA - Imperatriz",
+        uf: "MA",
+        coords: [-47.4917, -5.5264],
+        caminhoes: 4,
+        aeronaves: 1,
+        equipes: 3
+      },
+      {
+        id: "BA",
+        nome: "Base BA - Mucuri",
+        uf: "BA",
+        coords: [-39.5500, -18.0860],
+        caminhoes: 3,
+        aeronaves: 1,
+        equipes: 2
+      }
+    ];
+
+    const focos = [
+      {
+        id: "F-001",
+        nome: "Interior de Bauru",
+        uf: "SP",
+        coords: [-49.0700, -22.3200],
+        prioridade: "Alta",
+        risco: 78,
+        atendido: true,
+        baseId: "SP",
+        resposta: "Terrestre",
+        tempoMin: 42
+      },
+      {
+        id: "F-002",
+        nome: "Faixa leste de Três Lagoas",
+        uf: "MS",
+        coords: [-51.2800, -20.5900],
+        prioridade: "Crítica",
+        risco: 96,
+        atendido: true,
+        baseId: "MS",
+        resposta: "Integrada",
+        tempoMin: 28
+      },
+      {
+        id: "F-003",
+        nome: "Zona rural sul de Imperatriz",
+        uf: "MA",
+        coords: [-47.3200, -6.0500],
+        prioridade: "Crítica",
+        risco: 92,
+        atendido: false,
+        baseId: null,
+        resposta: null,
+        tempoMin: null
+      },
+      {
+        id: "F-004",
+        nome: "Extremo sul de Mucuri",
+        uf: "BA",
+        coords: [-39.4300, -18.4200],
+        prioridade: "Média",
+        risco: 52,
+        atendido: true,
+        baseId: "BA",
+        resposta: "Aérea",
+        tempoMin: 31
+      },
+      {
+        id: "F-005",
+        nome: "Região de Ribeirão Preto",
+        uf: "SP",
+        coords: [-47.8600, -21.1800],
+        prioridade: "Alta",
+        risco: 81,
+        atendido: false,
+        baseId: null,
+        resposta: null,
+        tempoMin: null
+      },
+      {
+        id: "F-006",
+        nome: "Divisa Maranhão–Tocantins",
+        uf: "MA",
+        coords: [-47.4500, -6.6200],
+        prioridade: "Alta",
+        risco: 74,
+        atendido: true,
+        baseId: "MA",
+        resposta: "Integrada",
+        tempoMin: 35
+      },
+      {
+        id: "F-007",
+        nome: "Corredor oeste do MS",
+        uf: "MS",
+        coords: [-54.9200, -21.6500],
+        prioridade: "Baixa",
+        risco: 28,
+        atendido: false,
+        baseId: null,
+        resposta: null,
+        tempoMin: null
+      },
+      {
+        id: "F-008",
+        nome: "Faixa oeste da Bahia",
+        uf: "BA",
+        coords: [-45.1500, -12.1800],
+        prioridade: "Crítica",
+        risco: 88,
+        atendido: false,
+        baseId: null,
+        resposta: null,
+        tempoMin: null
+      }
+    ];
+
+    const priorityOrder = {
+      "Crítica": 4,
+      "Alta": 3,
+      "Média": 2,
+      "Baixa": 1
+    };
+
+    const priorityColor = {
+      "Crítica": "#ff3b30",
+      "Alta": "#ff8c42",
+      "Média": "#ffd166",
+      "Baixa": "#4cc9f0"
+    };
+
+    const responseStyle = {
+      "Terrestre": { color: "#6ee7b7", dash: "0" },
+      "Aérea": { color: "#7dd3fc", dash: "10,6" },
+      "Integrada": { color: "#f9c74f", dash: "3,7" }
+    };
+
+    const ufNameMap = {
+      "ACRE": "AC",
+      "ALAGOAS": "AL",
+      "AMAPA": "AP",
+      "AMAZONAS": "AM",
+      "BAHIA": "BA",
+      "CEARA": "CE",
+      "DISTRITO FEDERAL": "DF",
+      "ESPIRITO SANTO": "ES",
+      "GOIAS": "GO",
+      "MARANHAO": "MA",
+      "MATO GROSSO": "MT",
+      "MATO GROSSO DO SUL": "MS",
+      "MINAS GERAIS": "MG",
+      "PARA": "PA",
+      "PARAIBA": "PB",
+      "PARANA": "PR",
+      "PERNAMBUCO": "PE",
+      "PIAUI": "PI",
+      "RIO DE JANEIRO": "RJ",
+      "RIO GRANDE DO NORTE": "RN",
+      "RIO GRANDE DO SUL": "RS",
+      "RONDONIA": "RO",
+      "RORAIMA": "RR",
+      "SANTA CATARINA": "SC",
+      "SAO PAULO": "SP",
+      "SERGIPE": "SE",
+      "TOCANTINS": "TO"
+    };
+
+    const svg = d3.select("#chart");
+    const tooltip = d3.select("#tooltip");
+    const mapPanel = document.querySelector(".map-panel");
+    const width = mapPanel.clientWidth || 1000;
+    const height = 760;
+
+    svg.attr("viewBox", [0, 0, width, height]);
+
+    const defs = svg.append("defs");
+    defs.append("filter")
+      .attr("id", "softGlow")
+      .html(`
+        <feGaussianBlur stdDeviation="7" result="coloredBlur"></feGaussianBlur>
+        <feMerge>
+          <feMergeNode in="coloredBlur"></feMergeNode>
+          <feMergeNode in="SourceGraphic"></feMergeNode>
+        </feMerge>
+      `);
+
+    const root = svg.append("g");
+    const mapLayer = root.append("g");
+    const routeLayer = root.append("g");
+    const baseLayer = root.append("g");
+    const focusLayer = root.append("g");
+
+    const projection = d3.geoMercator();
+    const geoPath = d3.geoPath(projection);
+
+    const riskScale = d3.scaleSqrt().domain([0, 100]).range([10, 42]);
+    const stateRiskColor = d3.scaleLinear()
+      .domain([0, 60, 120, 180])
+      .range(["#0d2234", "#1a4b5c", "#b9770e", "#8b1e1e"]);
+
+    let selectedPriority = "all";
+    let statePaths = null;
+
+    function normalizeText(value) {
+      return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .toUpperCase();
+    }
+
+    function resolveUF(feature) {
+      const props = feature.properties || {};
+      const raw = props.sigla || props.uf || props.UF || props.nome || props.name || props.NOME || "";
+      const normalized = normalizeText(raw);
+      return normalized.length === 2 ? normalized : (ufNameMap[normalized] || normalized);
+    }
+
+    function getVisibleFocos() {
+      return selectedPriority === "all"
+        ? focos.slice()
+        : focos.filter(f => f.prioridade === selectedPriority);
+    }
+
+    function aggregateRiskByState(data) {
+      const stateRisk = new Map();
+      data.forEach(foco => {
+        stateRisk.set(foco.uf, (stateRisk.get(foco.uf) || 0) + foco.risco);
+      });
+      return stateRisk;
+    }
+
+    function focusSort(a, b) {
+      if (priorityOrder[b.prioridade] !== priorityOrder[a.prioridade]) {
+        return priorityOrder[b.prioridade] - priorityOrder[a.prioridade];
+      }
+      if (a.atendido !== b.atendido) {
+        return Number(a.atendido) - Number(b.atendido);
+      }
+      return a.nome.localeCompare(b.nome, "pt-BR");
+    }
+
+    function showTooltip(event, html) {
+      tooltip.html(html)
+        .style("opacity", 1)
+        .style("transform", "translateY(0)");
+      moveTooltip(event);
+    }
+
+    function moveTooltip(event) {
+      tooltip
+        .style("left", (event.clientX + 16) + "px")
+        .style("top", (event.clientY + 16) + "px");
+    }
+
+    function hideTooltip() {
+      tooltip.style("opacity", 0).style("transform", "translateY(8px)");
+    }
+
+    function drawBases() {
+      const baseGroups = baseLayer.selectAll(".base")
+        .data(bases, d => d.id)
+        .join(enter => {
+          const g = enter.append("g").attr("class", "base");
+          g.append("path")
+            .attr("d", d3.symbol().type(d3.symbolTriangle).size(200))
+            .attr("fill", "#d9f4ff")
+            .attr("stroke", "#0a1723")
+            .attr("stroke-width", 2.5);
+
+          g.append("circle")
+            .attr("r", 5)
+            .attr("cy", 10)
+            .attr("fill", "#4cc9f0")
+            .attr("stroke", "#07111b")
+            .attr("stroke-width", 1.5);
+
+          g.append("text")
+            .attr("class", "base-label")
+            .attr("dx", 12)
+            .attr("dy", -10)
+            .text(d => d.nome);
+
+          return g;
+        });
+
+      baseGroups.attr("transform", d => {
+        const [x, y] = projection(d.coords);
+        return `translate(${x},${y})`;
+      });
+
+      baseGroups
+        .on("mouseenter", function(event, d) {
+          showTooltip(event, `
+            <strong>${d.nome}</strong>
+            <div>
+              UF: ${d.uf}<br>
+              Caminhões: ${d.caminhoes}<br>
+              Aeronaves: ${d.aeronaves}<br>
+              Equipes: ${d.equipes}
+            </div>
+          `);
+        })
+        .on("mousemove", moveTooltip)
+        .on("mouseleave", hideTooltip);
+    }
+
+    function render() {
+      const visibleFocos = getVisibleFocos();
+      const stateRisk = aggregateRiskByState(visibleFocos);
+
+      if (statePaths) {
+        statePaths
+          .transition()
+          .duration(450)
+          .attr("fill", d => {
+            const risk = stateRisk.get(resolveUF(d)) || 0;
+            return risk > 0 ? stateRiskColor(risk) : "#0f2233";
+          });
+      }
+
+      const routeData = visibleFocos
+        .filter(d => d.atendido && d.baseId)
+        .map(d => ({
+          ...d,
+          base: bases.find(b => b.id === d.baseId)
+        }));
+
+      const routes = routeLayer.selectAll(".route")
+        .data(routeData, d => d.id)
+        .join(
+          enter => enter.append("line")
+            .attr("class", "route")
+            .attr("stroke-width", 3)
+            .attr("filter", "url(#softGlow)"),
+          update => update,
+          exit => exit.transition().duration(250).attr("opacity", 0).remove()
+        );
+
+      routes
+        .attr("stroke", d => responseStyle[d.resposta].color)
+        .attr("stroke-dasharray", d => responseStyle[d.resposta].dash)
+        .transition()
+        .duration(500)
+        .attr("x1", d => projection(d.base.coords)[0])
+        .attr("y1", d => projection(d.base.coords)[1])
+        .attr("x2", d => projection(d.coords)[0])
+        .attr("y2", d => projection(d.coords)[1]);
+
+      const focoGroups = focusLayer.selectAll(".focus")
+        .data(visibleFocos.slice().sort(focusSort), d => d.id)
+        .join(
+          enter => {
+            const g = enter.append("g").attr("class", "focus");
+            g.append("circle")
+              .attr("class", "risk")
+              .attr("r", d => riskScale(d.risco))
+              .attr("fill", d => priorityColor[d.prioridade])
+              .attr("opacity", d => d.atendido ? 0.11 : 0.2)
+              .attr("filter", "url(#softGlow)");
+            g.append("circle")
+              .attr("class", "status-ring")
+              .attr("r", 12)
+              .attr("stroke", "#07111b")
+              .attr("stroke-width", 1.5);
+            g.append("circle")
+              .attr("class", "priority-core")
+              .attr("r", 7);
+            g.append("text")
+              .attr("class", "focus-label")
+              .attr("dy", -16)
+              .text(d => d.id);
+            return g;
+          },
+          update => update,
+          exit => exit.transition().duration(250).attr("opacity", 0).remove()
+        );
+
+      focoGroups
+        .attr("transform", d => {
+          const [x, y] = projection(d.coords);
+          return `translate(${x},${y})`;
+        });
+
+      focoGroups.select(".risk")
+        .attr("r", d => riskScale(d.risco))
+        .attr("fill", d => priorityColor[d.prioridade])
+        .attr("opacity", d => d.atendido ? 0.11 : 0.2);
+
+      focoGroups.select(".status-ring")
+        .attr("fill", d => d.atendido ? "#2ecc71" : "#ff5c5c");
+
+      focoGroups.select(".priority-core")
+        .attr("fill", d => priorityColor[d.prioridade]);
+
+      focoGroups
+        .on("mouseenter", function(event, d) {
+          const base = bases.find(b => b.id === d.baseId);
+          showTooltip(event, `
+            <strong>${d.id} • ${d.nome}</strong>
+            <div>
+              Prioridade: ${d.prioridade}<br>
+              Status: ${d.atendido ? "Atendido" : "Pendente"}<br>
+              Risco: ${d.risco}/100<br>
+              ${d.atendido
+                ? `Base: ${base.nome}<br>Resposta: ${d.resposta}<br>ETA: ${d.tempoMin} min`
+                : "Sem base alocada"}
+            </div>
+          `);
+        })
+        .on("mousemove", moveTooltip)
+        .on("mouseleave", hideTooltip);
+    }
+
+    function buildFilters() {
+      const buttons = document.querySelectorAll(".filter-btn");
+      buttons.forEach(btn => {
+        btn.addEventListener("click", () => {
+          buttons.forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          selectedPriority = btn.dataset.priority;
+          render();
+        });
+      });
+    }
+
+    d3.json(brazilGeoJsonUrl).then(geojson => {
+      projection.fitExtent([[30, 30], [width - 30, height - 30]], geojson);
+
+      statePaths = mapLayer.selectAll(".state")
+        .data(geojson.features)
+        .join("path")
+        .attr("class", "state")
+        .attr("d", geoPath)
+        .attr("fill", "#0f2233");
+
+      drawBases();
+      render();
+
+      svg.call(
+        d3.zoom()
+          .scaleExtent([1, 7])
+          .on("zoom", event => {
+            root.attr("transform", event.transform);
+          })
+      );
+
+      buildFilters();
+    }).catch(error => {
+      console.error(error);
+      svg.remove();
+      const panel = document.querySelector(".map-panel");
+      const errorBox = document.createElement("div");
+      errorBox.className = "error-box";
+      errorBox.innerHTML = `
+        <div>
+          <h3>Não foi possível carregar o GeoJSON do mapa.</h3>
+          <p>Abra o projeto em um servidor local e verifique a conexão com a internet.<br>
+          Exemplo: <code>python3 -m http.server</code></p>
+        </div>
+      `;
+      panel.appendChild(errorBox);
+    });
+  </script>
+</body>
+</html>
